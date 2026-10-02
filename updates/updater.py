@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-UPDATER_VERSION = "2.0.0"
+UPDATER_VERSION = "2.0.1"
 ROOT = Path(__file__).resolve().parent
 APP_DIR = ROOT / "APP"
 CONFIG = ROOT / "github_config.txt"
@@ -51,8 +51,10 @@ def native_message(title, message, kind="info"):
     try:
         if sys.platform == "darwin":
             icon = "caution" if kind == "error" else "note"
-            script = f'display dialog {json.dumps(message)} with title {json.dumps(title)} buttons {{"Aceptar"}} default button "Aceptar" with icon {icon}'
-            subprocess.run(["osascript", "-e", script], check=False)
+            script = ('on run argv\n'
+                      'display dialog (item 1 of argv) with title (item 2 of argv) '
+                      'buttons {"Aceptar"} default button "Aceptar" with icon ' + icon + '\nend run')
+            subprocess.run(["osascript", "-e", script, message, title], check=False)
         elif sys.platform.startswith("win"):
             icon = "Error" if kind == "error" else "Information"
             ps = (
@@ -74,11 +76,18 @@ def ask_update(local, remote):
     try:
         if sys.platform == "darwin":
             script = (
-                f'display dialog {json.dumps(message)} with title "Actualización disponible" '
-                'buttons {"Ahora no", "Actualizar"} default button "Actualizar" cancel button "Ahora no" with icon note'
+                'on run argv\n'
+                'activate\n'
+                'set answer to display dialog (item 1 of argv) with title "Actualización disponible" '
+                'buttons {"Ahora no", "Actualizar"} default button "Actualizar" cancel button "Ahora no" with icon note\n'
+                'return button returned of answer\nend run'
             )
-            r = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
-            return r.returncode == 0 and "Actualizar" in r.stdout
+            r = subprocess.run(["osascript", "-e", script, message], capture_output=True, text=True)
+            if r.returncode == 0:
+                return r.stdout.strip() == "Actualizar"
+            if "(-128)" in r.stderr:
+                return False
+            raise RuntimeError(r.stderr.strip() or f"osascript terminó con código {r.returncode}")
         if sys.platform.startswith("win"):
             ps = (
                 "Add-Type -AssemblyName PresentationFramework; "
@@ -90,8 +99,8 @@ def ask_update(local, remote):
         log(f"No se pudo mostrar la confirmación: {e}")
     try:
         return input("¿Actualizar ahora? [S/n]: ").strip().lower() not in {"n", "no"}
-    except Exception:
-        return True
+    except Exception as e:
+        raise RuntimeError("No se pudo obtener la confirmación para actualizar") from e
 
 
 def curl_download(url, out_path):
