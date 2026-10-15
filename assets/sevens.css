@@ -1,0 +1,64 @@
+<style>
+:root{--sevens-blue:#087eb7;--sevens-soft:#e5f3fb;--sevens-ink:#18374c;--sevens-muted:#526d80;--sevens-line:#d3e4ee}
+html,body,.stApp,button,input,select{font-family:"Avenir Next","Segoe UI",system-ui,sans-serif}
+.stApp{background:#f6f9fc;color:var(--sevens-ink)}
+[data-testid="stHeader"]{background:transparent}
+[data-testid="stToolbar"]{visibility:hidden}
+[data-testid="stMainBlockContainer"]{max-width:1120px;padding:2rem 2.5rem 1.5rem}
+[data-testid="stMainBlockContainer"]>[data-testid="stVerticalBlock"]{gap:1rem}
+[data-testid="stSidebar"]{background:#fff;border-right:1px solid var(--sevens-line)}
+[data-testid="stSidebarContent"]{padding-top:0}
+[data-testid="stSidebarUserContent"]{padding:2rem 1.5rem}
+.sevens-sidebar-brand,.sevens-hero{box-sizing:border-box;min-height:144px;margin:0 0 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.sevens-sidebar-brand{gap:8px}
+.sevens-sidebar-brand img{height:82px;width:82px;object-fit:contain}
+.sevens-sidebar-brand span{font-size:11px;font-weight:650;letter-spacing:1.2px;color:var(--sevens-ink)}
+.sevens-hero{padding:20px 24px;border:1px solid #c6e4f5;border-radius:16px;background:#e3f3fc}
+.sevens-eyebrow{font-size:10px;font-weight:600;letter-spacing:1.8px;color:var(--sevens-muted)}
+.sevens-hero h1{font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;font-size:32px;font-weight:600;letter-spacing:-1.1px;line-height:1.2;color:var(--sevens-ink);padding:9px 0;margin:0}
+.sevens-hero p{font-size:14px;line-height:1.5;margin:0;color:var(--sevens-muted)}
+.sevens-section-title{font-size:18px!important;font-weight:600!important;letter-spacing:-.3px;text-align:center;padding:3px 0!important;margin:0!important;color:var(--sevens-ink)}
+[data-testid="stSidebar"] [data-testid="stButton"] button{min-height:44px;border-radius:10px;border:1px solid var(--sevens-line);color:var(--sevens-ink);background:var(--sevens-soft);font-weight:500}
+[data-testid="stSidebar"] .st-key-cerrar_aplicacion{margin-top:16px}
+[data-testid="stSidebar"] .st-key-cerrar_aplicacion button{background:#fff}
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p{color:var(--sevens-ink)}
+[class*="st-key-upload_"]{background:#fff;border:1px solid var(--sevens-line)!important;border-radius:14px;min-height:218px;padding:14px!important;box-shadow:0 3px 12px #18374c04}
+.sevens-file-heading{display:flex;align-items:center;justify-content:center;text-align:center;height:44px;padding:8px 10px;margin-bottom:4px;background:var(--sevens-soft);border-radius:9px;font-size:15px;line-height:1.2;font-weight:600;letter-spacing:-.25px;color:var(--sevens-ink)}
+[data-testid="stFileUploader"]{min-width:0;min-height:132px}
+[data-testid="stFileUploaderDropzone"]{box-sizing:border-box;height:116px;min-height:116px;display:flex;flex-direction:column;justify-content:center;gap:9px;padding:12px;border:1px dashed #a4c7dc;background:#f9fcfe;border-radius:10px;text-align:center}
+[data-testid="stFileUploaderDropzoneInstructions"]{display:flex;align-items:center;justify-content:center;gap:8px;min-width:0}
+[data-testid="stFileUploaderDropzoneInstructions"]>div{font-size:0}
+[data-testid="stFileUploaderDropzoneInstructions"]>div>span{font-size:0}
+[data-testid="stFileUploaderDropzoneInstructions"]>div>span:first-child::after{content:"Arrastrá el archivo acá";font-size:13px;color:var(--sevens-muted)}
+[data-testid="stFileUploaderDropzoneInstructions"] small,[data-testid="stFileUploaderDropzoneInstructions"]>div>span:nth-child(2){display:none}
+[data-testid="stFileUploaderDropzone"] button{font-size:0;min-height:34px;min-width:154px;background:var(--sevens-soft);border:1px solid #a4c7dc;border-radius:8px;color:var(--sevens-ink)}
+[data-testid="stFileUploaderDropzone"] button::after{content:"Seleccionar archivo";font-size:13px}
+.st-key-generar_conciliacion button{width:100%;min-height:48px;background:var(--sevens-blue);color:#fff;border:0;border-radius:11px;letter-spacing:.7px;font-weight:600;box-shadow:0 4px 12px #087eb714}
+.st-key-generar_conciliacion button:disabled{background:#a9cfe3;color:#233f52;opacity:1;box-shadow:none}
+.sevens-footer{display:flex;align-items:center;justify-content:center;border-top:1px solid var(--sevens-line);padding-top:20px;margin-top:12px}
+.sevens-logo{width:160px;max-width:100%;height:48px;object-fit:contain;object-position:center}
+.sevens-wordmark{color:var(--sevens-blue);font-size:21px;letter-spacing:3px;font-weight:600}
+.sevens-wordmark small{font-size:11px;letter-spacing:4px}
+@media(max-width:700px){[data-testid="stMainBlockContainer"]{padding:1.5rem 1rem}.sevens-hero{padding:18px}.sevens-hero h1{font-size:27px}[data-testid="stHorizontalBlock"]{flex-wrap:wrap}[data-testid="stColumn"]{min-width:240px;flex:1 1 240px}.sevens-file-heading{font-size:14px}}
+
+/* El encabezado nativo del sidebar agregaba 76 px antes del logo. */
+[data-testid="stSidebarHeader"]{position:absolute;top:0;right:0;height:32px;margin:0;z-index:2}
+[data-testid="stSidebarUserContent"]{padding:48px 1.5rem 24px!important}
+[data-testid="stSidebarUserContent"]>[data-testid="stVerticalBlock"], [data-testid="stSidebarUserContent"] [data-testid="stVerticalBlock"]{gap:14px}
+.sevens-sidebar-brand{background:transparent;border:0;border-radius:0;margin-bottom:8px}
+.sevens-sidebar-brand img{mix-blend-mode:multiply;border-radius:19px}
+.sevens-section-title{background:var(--sevens-soft);border:1px solid var(--sevens-line);border-radius:10px;padding:12px 16px!important}
+[data-testid="stMainBlockContainer"] .stElementContainer:has(.sevens-section-title){margin-top:0;margin-bottom:0}
+[data-testid="stMainBlockContainer"] .sevens-hero{margin-bottom:16px}
+[data-testid="stMainBlockContainer"] [data-testid="stMarkdownContainer"]:has(.sevens-section-title){margin-bottom:0!important}
+.sevens-device-card{background:#f6f9fc;border:1px solid var(--sevens-line);border-radius:12px;padding:15px 14px;margin:2px 0 4px}
+.sevens-device-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0;font-size:13px;line-height:1.4}
+.sevens-device-row span{color:var(--sevens-muted)}
+.sevens-device-row strong{font-weight:600;color:var(--sevens-ink);text-align:right}
+.sevens-device-date{font-size:11px;color:var(--sevens-muted);border-top:1px solid var(--sevens-line);padding-top:9px;margin-top:7px;text-align:center}
+.sevens-logo{mix-blend-mode:multiply}
+
+/* Panel fijo: evita ocultarlo accidentalmente durante la conciliación. */
+[data-testid="stSidebarCollapseButton"]{display:none!important}
+[data-testid="stExpandSidebarButton"],[data-testid="stSidebarCollapsedControl"]{visibility:visible!important;opacity:1!important;z-index:9999}
+</style>
