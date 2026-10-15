@@ -1,0 +1,10 @@
+runtime_*/
+logs/
+backups/
+build/
+check-*/
+__pycache__/
+*.pyc
+.DS_Store
+**/bootstrap_payload/
+authorized_machines.json

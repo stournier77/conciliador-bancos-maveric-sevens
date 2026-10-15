@@ -1,0 +1,33 @@
+name: Pruebas Mac y Windows
+on:
+  push:
+    branches: ['design/**']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  checks:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -p 'test_*.py'
+      - name: Probar arranque PowerShell con error de intérprete y reapertura
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $python = (python -c "import sys; print(sys.executable)")
+          & ./tests/test_pc_launcher.ps1 -Python $python
+      - name: Compilar programa y lanzadores
+        run: python -m compileall -q app launchers
+      - name: Generar y validar ambos paquetes
+        run: |
+          python launchers/Preparar_publicacion.py build
+          python -c "import sys; from pathlib import Path; sys.path.insert(0,'launchers'); from arranque import validate_zip; validate_zip(Path('build/latest_mac.zip'),Path('check-mac')); validate_zip(Path('build/latest_pc.zip'),Path('check-pc'))"

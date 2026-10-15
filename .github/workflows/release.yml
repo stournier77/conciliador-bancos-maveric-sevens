@@ -1,0 +1,49 @@
+name: Publicar actualización Mac y Windows
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['updates/**']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: publicar-sevens
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Generar y validar paquetes compatibles
+        run: python launchers/Preparar_publicacion.py build
+      - name: Leer versión
+        id: version
+        run: echo "value=$(cat version.txt)" >> "$GITHUB_OUTPUT"
+      - name: Mantener compatibilidad con el actualizador anterior de Bancos
+        run: |
+          cp build/latest_app.zip updates/latest_app.zip
+          cp build/version.txt updates/version.txt
+          git config user.name "Sevens Releases"
+          git config user.email "releases@users.noreply.github.com"
+          git add updates/latest_app.zip updates/version.txt
+          git diff --cached --quiet || git commit -m "Paquete de actualización Bancos [skip ci]"
+          git push origin HEAD:main
+      - name: Publicar actualización
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.value }}
+          target_commitish: ${{ github.sha }}
+          name: Conciliador Bancos ${{ steps.version.outputs.value }} · 15/10/2026
+          make_latest: true
+          fail_on_unmatched_files: true
+          body: |
+            Diseño Sevens unificado, con el motor y las reglas de conciliación conservados.
+            Mismos accesos de escritorio en Mac y Windows, actualización automática, reapertura de la ventana y resultados en Documentos.
+            Incluye migración automática desde los actualizadores anteriores. Se conservan los históricos y la configuración local.
+          files: |
+            build/latest_mac.zip
+            build/latest_pc.zip
+            build/version.txt

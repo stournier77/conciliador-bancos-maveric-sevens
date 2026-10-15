@@ -1,253 +1,64 @@
-import os
-import sys
-import time
-import shutil
-import zipfile
-import subprocess
-import tempfile
-import json
+"""Puente compatible con el acceso de escritorio y el actualizador anterior."""
+import hashlib,json,os,shutil,subprocess,sys,tempfile,time,urllib.request,zipfile
 from pathlib import Path
-from urllib.request import Request, urlopen
-
-UPDATER_VERSION = "2.0.1"
-ROOT = Path(__file__).resolve().parent
-APP_DIR = ROOT / "APP"
-CONFIG = ROOT / "github_config.txt"
-LOG_FILE = ROOT / "actualizador.log"
-
-
-def log(message):
-    text = str(message)
-    print(text, flush=True)
-    try:
-        with LOG_FILE.open("a", encoding="utf-8") as f:
-            f.write(time.strftime("%Y-%m-%d %H:%M:%S") + "  " + text + "\n")
-    except Exception:
-        pass
-
-
-def read_config():
-    cfg = {
-        "GITHUB_USER": "stournier77",
-        "GITHUB_REPO": "conciliador-bancos-maveric-sevens",
-        "GITHUB_BRANCH": "main",
-        "APP_PORT": "8772",
-    }
-    if CONFIG.exists():
-        for line in CONFIG.read_text(encoding="utf-8-sig").splitlines():
-            line = line.strip()
-            if line and not line.startswith("#") and "=" in line:
-                k, v = line.split("=", 1)
-                cfg[k.strip()] = v.strip()
-    return cfg
-
-
+UPDATER_VERSION='2.1.0'
+ROOT=Path(__file__).resolve().parent
+REPO='stournier77/conciliador-bancos-maveric-sevens'
+MANAGED={'APP','assets','launchers','tests','requirements.txt','version.txt','settings.json','README.md','INSTALAR.command','INSTALAR.bat','Abrir Conciliador Bancos Maveric.command','Abrir Conciliador Bancos Maveric.bat'}
+def fetch(url):
+    request=urllib.request.Request(url,headers={'User-Agent':'Sevens-Bancos','Accept':'application/vnd.github+json'})
+    with urllib.request.urlopen(request,timeout=30) as response:return response.read()
 def current_version():
-    vf = APP_DIR / "version.txt"
-    return vf.read_text(encoding="utf-8-sig").strip() if vf.exists() else "0.0.0"
-
-
-def native_message(title, message, kind="info"):
+    p=ROOT/'version.txt'
+    if not p.exists():p=ROOT/'APP/version.txt'
+    return p.read_text().strip() if p.exists() else '0.0.0'
+def main():
     try:
-        if sys.platform == "darwin":
-            icon = "caution" if kind == "error" else "note"
-            script = ('on run argv\n'
-                      'display dialog (item 1 of argv) with title (item 2 of argv) '
-                      'buttons {"Aceptar"} default button "Aceptar" with icon ' + icon + '\nend run')
-            subprocess.run(["osascript", "-e", script, message, title], check=False)
-        elif sys.platform.startswith("win"):
-            icon = "Error" if kind == "error" else "Information"
-            ps = (
-                "Add-Type -AssemblyName PresentationFramework; "
-                f"[System.Windows.MessageBox]::Show({message!r},{title!r},'OK','{icon}') | Out-Null"
-            )
-            subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps], check=False)
-    except Exception:
-        pass
-
-
-def ask_update(local, remote):
-    message = (
-        "Hay una nueva versión del Conciliador Bancos - Maveric.\n\n"
-        f"Versión instalada: {local}\n"
-        f"Nueva versión: {remote}\n\n"
-        "¿Desea actualizar ahora?"
-    )
-    try:
-        if sys.platform == "darwin":
-            script = (
-                'on run argv\n'
-                'activate\n'
-                'set answer to display dialog (item 1 of argv) with title "Actualización disponible" '
-                'buttons {"Ahora no", "Actualizar"} default button "Actualizar" cancel button "Ahora no" with icon note\n'
-                'return button returned of answer\nend run'
-            )
-            r = subprocess.run(["osascript", "-e", script, message], capture_output=True, text=True)
-            if r.returncode == 0:
-                return r.stdout.strip() == "Actualizar"
-            if "(-128)" in r.stderr:
-                return False
-            raise RuntimeError(r.stderr.strip() or f"osascript terminó con código {r.returncode}")
-        if sys.platform.startswith("win"):
-            ps = (
-                "Add-Type -AssemblyName PresentationFramework; "
-                f"$r=[System.Windows.MessageBox]::Show({message!r},'Actualización disponible','YesNo','Information'); "
-                "if($r -eq 'Yes'){exit 0}else{exit 1}"
-            )
-            return subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps]).returncode == 0
-    except Exception as e:
-        log(f"No se pudo mostrar la confirmación: {e}")
-    try:
-        return input("¿Actualizar ahora? [S/n]: ").strip().lower() not in {"n", "no"}
-    except Exception as e:
-        raise RuntimeError("No se pudo obtener la confirmación para actualizar") from e
-
-
-def curl_download(url, out_path):
-    subprocess.check_call(["curl", "-L", "--fail", "--silent", "--show-error", url, "-o", str(out_path)])
-
-
-def download(url, out_path):
-    out_path = Path(out_path)
-    try:
-        with urlopen(Request(url, headers={"User-Agent": "Conciliador-Bancos-Maveric-Sevens"}), timeout=120) as r:
-            out_path.write_bytes(r.read())
-    except Exception as first_error:
-        log(f"Descarga Python no disponible; intento alternativo: {first_error}")
-        if sys.platform == "darwin":
-            curl_download(url, out_path)
-        elif sys.platform.startswith("win"):
-            ps = f"Invoke-WebRequest -Uri {url!r} -OutFile {str(out_path)!r} -UseBasicParsing"
-            subprocess.check_call(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps])
-        else:
-            raise
-
-
-def fetch_text(url):
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        p = Path(tmp.name)
-    try:
-        download(url, p)
-        return p.read_text(encoding="utf-8-sig").strip()
-    finally:
-        p.unlink(missing_ok=True)
-
-
-def github_base():
-    cfg = read_config()
-    return f"https://raw.githubusercontent.com/{cfg['GITHUB_USER']}/{cfg['GITHUB_REPO']}/{cfg.get('GITHUB_BRANCH','main')}/updates"
-
-
-def self_update_if_needed(base, stamp):
-    try:
-        remote = fetch_text(base + "/updater_version.txt?nocache=" + stamp)
-        if remote and remote != UPDATER_VERSION:
-            log(f"Actualizando el sistema de actualizaciones: {UPDATER_VERSION} → {remote}")
-            new_file = ROOT / "updater.py.nuevo"
-            download(base + "/updater.py?nocache=" + stamp, new_file)
-            source = new_file.read_text(encoding="utf-8-sig")
-            compile(source, str(new_file), "exec")
-            backup = ROOT / "updater.py.anterior"
-            shutil.copy2(Path(__file__).resolve(), backup)
-            os.replace(new_file, Path(__file__).resolve())
-            log("Actualizador renovado. Reiniciando...")
-            os.execv(sys.executable, [sys.executable, str(Path(__file__).resolve())])
-    except Exception as e:
-        log(f"Aviso: no se pudo verificar el propio actualizador: {e}")
-
-
-def install_app(base, remote, stamp):
-    tmp_zip = ROOT / "_latest_app.zip"
-    temp_extract = ROOT / "_APP_NUEVA"
-    backup = ROOT / "APP_RESPALDO"
-    tmp_zip.unlink(missing_ok=True)
-    if temp_extract.exists(): shutil.rmtree(temp_extract)
-    log("Descargando nueva versión...")
-    download(base + "/latest_app.zip?nocache=" + stamp, tmp_zip)
-    log("Verificando archivo descargado...")
-    with zipfile.ZipFile(tmp_zip, "r") as z:
-        bad = z.testzip()
-        if bad: raise RuntimeError(f"Archivo ZIP dañado: {bad}")
-        z.extractall(temp_extract)
-    candidate = temp_extract / "APP"
-    if not (candidate / "app.py").exists():
-        raise RuntimeError("La actualización no contiene APP/app.py")
-    installed_version = (candidate / "version.txt").read_text(encoding="utf-8-sig").strip()
-    if installed_version != remote:
-        raise RuntimeError(f"El ZIP informa versión {installed_version}, pero GitHub anuncia {remote}")
-    compile((candidate / "app.py").read_text(encoding="utf-8"), str(candidate / "app.py"), "exec")
-    log("Instalando actualización...")
-    if backup.exists(): shutil.rmtree(backup)
-    if APP_DIR.exists(): os.replace(APP_DIR, backup)
-    try:
-        os.replace(candidate, APP_DIR)
-    except Exception:
-        if APP_DIR.exists(): shutil.rmtree(APP_DIR)
-        if backup.exists(): os.replace(backup, APP_DIR)
-        raise
-    shutil.rmtree(backup, ignore_errors=True)
-    shutil.rmtree(temp_extract, ignore_errors=True)
-    tmp_zip.unlink(missing_ok=True)
-    log(f"Actualización {remote} instalada correctamente.")
-
-
-def check_updates():
-    base = github_base()
-    stamp = str(int(time.time()))
-    self_update_if_needed(base, stamp)
-    local = current_version()
-    log("Buscando actualizaciones...")
-    remote = fetch_text(base + "/version.txt?nocache=" + stamp)
-    log(f"Versión instalada: {local}")
-    log(f"Última versión disponible: {remote}")
-    if remote != local:
-        if ask_update(local, remote):
-            try:
-                install_app(base, remote, stamp)
-                native_message("Actualización completada", f"La versión {remote} se instaló correctamente.\n\nAhora se abrirá la aplicación.")
-            except Exception as e:
-                log(f"ERROR AL ACTUALIZAR: {e}")
-                native_message("No se pudo actualizar", f"No se pudo instalar la versión {remote}.\n\nSe abrirá la versión anterior.\n\nDetalle: {e}", "error")
-        else:
-            log("Actualización pospuesta por el usuario.")
-    else:
-        log("La aplicación está actualizada.")
-
-
-def kill_port(port):
-    try:
-        if sys.platform == "darwin":
-            pids = subprocess.check_output(["bash", "-lc", f"lsof -ti tcp:{port} || true"], text=True).strip()
-            if pids:
-                subprocess.call(["bash", "-lc", f"echo '{pids}' | xargs kill -9 || true"])
-        elif sys.platform.startswith("win"):
-            ps = f"$p=(Get-NetTCPConnection -LocalPort {port} -ErrorAction SilentlyContinue).OwningProcess|Select-Object -Unique; foreach($i in $p){{try{{Stop-Process -Id $i -Force}}catch{{}}}}"
-            subprocess.call(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps])
-    except Exception as e:
-        log(f"No se pudo cerrar una ejecución anterior: {e}")
-
-
-def run_app():
-    if not (APP_DIR / "app.py").exists():
-        native_message("Aplicación no encontrada", f"No se encontró:\n{APP_DIR / 'app.py'}", "error")
-        raise FileNotFoundError(APP_DIR / "app.py")
-    cfg = read_config()
-    port = cfg.get("APP_PORT", "8772")
-    kill_port(port)
-    req = APP_DIR / "requirements.txt"
-    if req.exists():
-        subprocess.call([sys.executable, "-m", "pip", "install", "-r", str(req)])
-    if sys.platform == "darwin":
-        subprocess.Popen(["open", f"http://localhost:{port}"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    elif sys.platform.startswith("win"):
-        subprocess.Popen(["cmd", "/c", "start", "", f"http://localhost:{port}"], shell=False)
-    subprocess.call([sys.executable, "-m", "streamlit", "run", str(APP_DIR / "app.py"), "--server.port", port])
-
-
-if __name__ == "__main__":
-    try:
-        check_updates()
-    except Exception as e:
-        log(f"No se pudo comprobar la actualización: {e}")
-        native_message("Sin conexión con actualizaciones", f"No se pudo consultar GitHub.\n\nSe abrirá la versión instalada.\n\nDetalle: {e}", "error")
-    run_app()
+        release=json.loads(fetch(f'https://api.github.com/repos/{REPO}/releases/latest'))
+        remote=release['tag_name'].lstrip('v')
+        if tuple(map(int,remote.split('.')))>tuple(map(int,current_version().split('.'))):
+            key='pc' if os.name=='nt' else 'mac'
+            asset=next(a for a in release['assets'] if a['name']==f'latest_{key}.zip')
+            url=asset['browser_download_url']
+            if not url.startswith(f'https://github.com/{REPO}/releases/download/'):raise ValueError('Origen inesperado')
+            content=fetch(url)
+            if asset.get('digest','').startswith('sha256:') and hashlib.sha256(content).hexdigest()!=asset['digest'][7:]:raise ValueError('Checksum incorrecto')
+            with tempfile.TemporaryDirectory() as temp:
+                temp=Path(temp);archive=temp/'app.zip';archive.write_bytes(content);stage=temp/'stage';stage.mkdir()
+                with zipfile.ZipFile(archive) as z:
+                    for info in z.infolist():
+                        p=Path(info.filename)
+                        if p.is_absolute() or '..' in p.parts or '\\' in info.filename:raise ValueError('Ruta insegura')
+                        if not p.parts or p.parts[0] not in MANAGED or info.is_dir():continue
+                        target=stage/p;target.parent.mkdir(parents=True,exist_ok=True)
+                        with z.open(info) as source,target.open('wb') as output:shutil.copyfileobj(source,output)
+                if (stage/'version.txt').read_text().strip()!=remote:raise ValueError('Versión inválida')
+                config=json.loads((stage/'settings.json').read_text())
+                if config['repo']!=REPO:raise ValueError('Paquete de otra aplicación')
+                backup=ROOT/'backups'/('puente_'+str(time.time_ns()));backup.mkdir(parents=True)
+                copied=[]
+                try:
+                    for name in MANAGED:
+                        source=stage/name;target=ROOT/name
+                        if not source.exists():continue
+                        if target.exists():
+                            if target.is_dir():shutil.copytree(target,backup/name)
+                            else:shutil.copy2(target,backup/name)
+                        copied.append(name)
+                        if source.is_dir():shutil.copytree(source,target,dirs_exist_ok=True)
+                        else:shutil.copy2(source,target)
+                except Exception:
+                    for name in copied:
+                        source=backup/name
+                        if source.is_dir():shutil.copytree(source,ROOT/name,dirs_exist_ok=True)
+                        elif source.exists():shutil.copy2(source,ROOT/name)
+                    raise
+    except Exception as exc:print('Actualización: se conserva la versión instalada.',exc,flush=True)
+    support=ROOT/'launchers'
+    if support.exists():
+        if os.name=='nt':command=['powershell','-NoProfile','-ExecutionPolicy','Bypass','-File',str(support/'Abrir_Conciliador_Sevens_PC.ps1')]
+        else:command=['/bin/zsh',str(support/'Abrir_Conciliador_Sevens_Mac.command')]
+        raise SystemExit(subprocess.call(command))
+    # Durante la transición, conservar la aplicación anterior si GitHub no responde.
+    raise SystemExit(subprocess.call([sys.executable,'-m','streamlit','run',str(ROOT/'APP/app.py'),'--server.port=8772']))
+if __name__=='__main__':main()
