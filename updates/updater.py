@@ -1,13 +1,35 @@
 """Puente compatible con el acceso de escritorio y el actualizador anterior."""
 import hashlib,json,os,shutil,subprocess,sys,tempfile,time,urllib.request,zipfile
 from pathlib import Path
-UPDATER_VERSION='2.1.0'
+UPDATER_VERSION='2.1.1'
 ROOT=Path(__file__).resolve().parent
 REPO='stournier77/conciliador-bancos-maveric-sevens'
-MANAGED={'APP','assets','launchers','tests','requirements.txt','version.txt','settings.json','README.md','INSTALAR.command','INSTALAR.bat','Abrir Conciliador Bancos Maveric.command','Abrir Conciliador Bancos Maveric.bat'}
+MANAGED={'updater.py','APP','assets','launchers','tests','requirements.txt','version.txt','settings.json','README.md','INSTALAR.command','INSTALAR.bat','Abrir Conciliador Bancos Maveric.command','Abrir Conciliador Bancos Maveric.bat'}
+
+def secure_bytes(url):
+    """HTTPS verificado: urllib o confianza nativa del sistema como alternativa."""
+    import urllib.error,ssl,tempfile,os,subprocess
+    from pathlib import Path
+    from urllib.parse import urlparse
+    if urlparse(url).scheme!='https':raise ValueError('La descarga requiere HTTPS')
+    request=urllib.request.Request(url,headers={'User-Agent':'Sevens-Updates','Accept':'application/vnd.github+json'})
+    try:
+        with urllib.request.urlopen(request,timeout=30) as response:data=response.read(50_000_001)
+    except (urllib.error.URLError,ssl.SSLError):
+        with tempfile.TemporaryDirectory() as temporary:
+            target=Path(temporary)/'download.bin'
+            if os.name=='nt':
+                env=dict(os.environ,SEVENS_DOWNLOAD_URL=url,SEVENS_DOWNLOAD_TARGET=str(target))
+                code="$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -UseBasicParsing -Uri $env:SEVENS_DOWNLOAD_URL -OutFile $env:SEVENS_DOWNLOAD_TARGET -TimeoutSec 90"
+                subprocess.run(['powershell','-NoProfile','-NonInteractive','-Command',code],env=env,check=True,timeout=100,capture_output=True)
+            else:
+                subprocess.run(['curl','--fail','--location','--silent','--show-error','--proto','=https','--proto-redir','=https','--connect-timeout','8','--max-time','90',url,'--output',str(target)],check=True,timeout=100,capture_output=True)
+            data=target.read_bytes()
+    if len(data)>50_000_000:raise ValueError('La descarga excede el tamaño permitido')
+    return data
+
 def fetch(url):
-    request=urllib.request.Request(url,headers={'User-Agent':'Sevens-Bancos','Accept':'application/vnd.github+json'})
-    with urllib.request.urlopen(request,timeout=30) as response:return response.read()
+    return secure_bytes(url)
 def current_version():
     p=ROOT/'version.txt'
     if not p.exists():p=ROOT/'APP/version.txt'

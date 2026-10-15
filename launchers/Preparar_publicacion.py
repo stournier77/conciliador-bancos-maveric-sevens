@@ -8,7 +8,7 @@ def build(destination):
     if version!=SETTINGS['version']:raise ValueError('Versión incompatible con settings.json')
     # Incluir el soporte dentro de cada APP para los actualizadores anteriores.
     folders=['APP'] if SETTINGS['kind']=='Bancos' else ['APP_MAC','APP_PC']
-    support=['launchers','assets','requirements.txt','settings.json','version.txt','README.md','INSTALAR.command','INSTALAR.bat']
+    support=['updater.py','launchers','assets','requirements.txt','settings.json','version.txt','README.md','INSTALAR.command','INSTALAR.bat']
     support += [p.name for p in ROOT.glob('Abrir Conciliador *')]
     if (ROOT/'installed_version.txt').exists():support.append('installed_version.txt')
     for folder in folders:
@@ -41,6 +41,9 @@ def build(destination):
         with zipfile.ZipFile(destination/'latest_app.zip','w',zipfile.ZIP_DEFLATED) as z:
             for file in (ROOT/'APP').rglob('*'):
                 if file.is_file() and '__pycache__' not in file.parts and file.suffix!='.pyc':z.write(file,file.relative_to(ROOT))
+    if SETTINGS['kind']=='Bancos':
+        with zipfile.ZipFile(destination/'Reparar_Inicio_Bancos_Mac.zip','w',zipfile.ZIP_DEFLATED) as z:
+            z.write(ROOT/'Reparar_Inicio_Bancos_Mac.command','Reparar_Inicio_Bancos_Mac.command')
     print('Paquetes validados:',destination)
 
 if __name__=='__main__':build(sys.argv[1] if len(sys.argv)>1 else ROOT/'build')

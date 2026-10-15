@@ -12,6 +12,21 @@ import arranque
 import sevens_paths
 
 class AppTests(unittest.TestCase):
+    def test_https_uses_verified_native_fallback(self):
+        import urllib.error,subprocess
+        commands=[]
+        def native(command,**kwargs):
+            commands.append(command)
+            target=kwargs['env']['SEVENS_DOWNLOAD_TARGET'] if os.name=='nt' else command[-1]
+            Path(target).write_bytes(b'{"ok":true}')
+            return subprocess.CompletedProcess(command,0)
+        with patch('urllib.request.urlopen',side_effect=urllib.error.URLError('CERTIFICATE_VERIFY_FAILED')),patch('subprocess.run',side_effect=native):
+            self.assertEqual(arranque.fetch('https://github.com/example'),{'ok':True})
+        self.assertEqual(len(commands),1)
+        self.assertNotIn('--insecure',commands[0]);self.assertNotIn('-k',commands[0])
+        self.assertNotIn('ServerCertificateValidationCallback',' '.join(commands[0]))
+        self.assertEqual(commands[0][0],'powershell' if os.name=='nt' else 'curl')
+
     def test_engine_unchanged(self):
         excluded={'out_base','save_copy'} if KIND=='Bancos' else {'get_reports_base_dir','output_name'}
         actual=[[n.name,hashlib.sha256(ast.dump(n,include_attributes=False).encode()).hexdigest()] for n in ast.parse((APP/'app.py').read_text(encoding='utf-8')).body if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) and n.name not in excluded]
