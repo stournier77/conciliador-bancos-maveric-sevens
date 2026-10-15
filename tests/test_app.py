@@ -4,7 +4,7 @@ from unittest.mock import patch,MagicMock
 from datetime import datetime
 import pandas as pd
 ROOT=Path(__file__).resolve().parents[1]
-SETTINGS=json.loads((ROOT/'settings.json').read_text())
+SETTINGS=json.loads((ROOT/'settings.json').read_text(encoding='utf-8'))
 KIND=SETTINGS['kind']
 APP=ROOT/('APP' if KIND=='Bancos' else 'APP_MAC')
 sys.path.insert(0,str(APP));sys.path.insert(0,str(ROOT/'launchers'))
@@ -14,8 +14,8 @@ import sevens_paths
 class AppTests(unittest.TestCase):
     def test_engine_unchanged(self):
         excluded={'out_base','save_copy'} if KIND=='Bancos' else {'get_reports_base_dir','output_name'}
-        actual=[[n.name,hashlib.sha256(ast.dump(n,include_attributes=False).encode()).hexdigest()] for n in ast.parse((APP/'app.py').read_text()).body if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) and n.name not in excluded]
-        self.assertEqual(actual,json.loads((ROOT/'tests/engine_fingerprints.json').read_text()))
+        actual=[[n.name,hashlib.sha256(ast.dump(n,include_attributes=False).encode()).hexdigest()] for n in ast.parse((APP/'app.py').read_text(encoding='utf-8')).body if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) and n.name not in excluded]
+        self.assertEqual(actual,json.loads((ROOT/'tests/engine_fingerprints.json').read_text(encoding='utf-8')))
         if KIND=='IATA':self.assertEqual((ROOT/'APP_MAC/app.py').read_bytes(),(ROOT/'APP_PC/app.py').read_bytes())
 
     def test_interface_and_output_paths(self):
@@ -48,8 +48,8 @@ class AppTests(unittest.TestCase):
             (target/'authorized_machines.json').write_text('local-config');(target/'runtime_pc').mkdir();(target/'runtime_pc/keep').write_text('runtime')
             history=root/'Archivos conciliados';history.mkdir();(history/'keep.xlsx').write_bytes(b'history')
             arranque.deploy(source,target)
-            self.assertEqual((target/'authorized_machines.json').read_text(),'local-config')
-            self.assertEqual((target/'runtime_pc/keep').read_text(),'runtime')
+            self.assertEqual((target/'authorized_machines.json').read_text(encoding='utf-8'),'local-config')
+            self.assertEqual((target/'runtime_pc/keep').read_text(encoding='utf-8'),'runtime')
             self.assertEqual((history/'keep.xlsx').read_bytes(),b'history')
 
     def test_migration_preserves_configuration_and_shortcut(self):
@@ -59,6 +59,6 @@ class AppTests(unittest.TestCase):
             (root/'authorized_machines.json').write_text('private');(root/'desktop.lnk').write_bytes(b'icon')
             file=app/'sevens_migrate.py';shutil.copy2(APP/'sevens_migrate.py',file)
             spec=importlib.util.spec_from_file_location('migration_test',file);module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);module.migrate();module.migrate()
-            self.assertEqual((root/'authorized_machines.json').read_text(),'private');self.assertEqual((root/'desktop.lnk').read_bytes(),b'icon');self.assertEqual((root/'version.txt').read_text(),'test')
+            self.assertEqual((root/'authorized_machines.json').read_text(encoding='utf-8'),'private');self.assertEqual((root/'desktop.lnk').read_bytes(),b'icon');self.assertEqual((root/'version.txt').read_text(encoding='utf-8'),'test')
 
 if __name__=='__main__':unittest.main()
