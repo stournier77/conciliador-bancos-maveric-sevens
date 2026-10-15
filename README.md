@@ -7,3 +7,5 @@ Mismos accesos de escritorio en Mac y Windows, puerto exclusivo, actualización 
 Los paquetes mantienen compatibilidad con los actualizadores anteriores. La primera apertura migra únicamente los archivos del programa al nuevo arranque, sin modificar el acceso de escritorio. El entorno privado Python 3.12 se prepara automáticamente la primera vez. En Windows se usa la resolución de Documentos del sistema.
 
 Pruebas: python -m unittest discover -s tests; en Windows se prueban además la recuperación de Python ausente y la reutilización del entorno con PowerShell. Generar paquetes: python launchers/Preparar_publicacion.py build.
+
+Corrección HTTPS: si el Python del equipo carece de certificados raíz, la descarga usa curl en Mac o la confianza del sistema en Windows. Se mantiene la validación TLS y SHA256 del paquete. No se modifica la configuración de certificados del equipo.

@@ -25,7 +25,8 @@ $link.TargetPath=$Target;$link.WorkingDirectory=$WorkDir;$link.IconLocation=$Ico
         (app/'Contents/Resources').mkdir(exist_ok=True)
         launcher=app/'Contents/MacOS/InicioSevens'
         import shlex
-        launcher.write_text('#!/bin/zsh\nexec '+shlex.quote(str(target/(legacy+'.command')))+'\n');launcher.chmod(0o755)
+        (target/'logs').mkdir(exist_ok=True)
+        launcher.write_text('#!/bin/zsh\nnohup /bin/zsh '+shlex.quote(str(target/(legacy+'.command')))+' >> '+shlex.quote(str(target/'logs/acceso_escritorio.log'))+' 2>&1 < /dev/null &\n');launcher.chmod(0o755)
         icon='AppIcon.icns' if kind=='Bancos' else 'Conciliador_IATA_Maveric.icns'
         shutil.copy2(target/'assets'/icon,app/'Contents/Resources/AppIcon.icns')
         info=dict(CFBundleExecutable='InicioSevens',CFBundleName=name,CFBundleIdentifier='uy.sevens.conciliador.'+kind.lower(),CFBundleIconFile='AppIcon',CFBundlePackageType='APPL',CFBundleVersion=SETTINGS['version'])

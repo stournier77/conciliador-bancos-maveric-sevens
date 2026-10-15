@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SETTINGS = json.loads((ROOT/'settings.json').read_text())
 REPO = SETTINGS['repo']
 PORT = SETTINGS['port']
-MANAGED = ('APP', 'APP_MAC', 'APP_PC', 'assets', 'launchers', 'tests', 'requirements.txt', 'version.txt', 'installed_version.txt', 'settings.json', 'README.md', 'Abrir Conciliador Bancos Maveric.command', 'Abrir Conciliador Bancos Maveric.bat', 'Abrir Conciliador IATA Maveric.command', 'Abrir Conciliador IATA Maveric.bat', 'INSTALAR.command', 'INSTALAR.bat')
+MANAGED = ('updater.py','APP', 'APP_MAC', 'APP_PC', 'assets', 'launchers', 'tests', 'requirements.txt', 'version.txt', 'installed_version.txt', 'settings.json', 'README.md', 'Abrir Conciliador Bancos Maveric.command', 'Abrir Conciliador Bancos Maveric.bat', 'Abrir Conciliador IATA Maveric.command', 'Abrir Conciliador IATA Maveric.bat', 'INSTALAR.command', 'INSTALAR.bat')
 APP_FOLDER = ROOT / ('APP' if SETTINGS['kind']=='Bancos' else ('APP_PC' if os.name=='nt' else 'APP_MAC'))
 PLATFORM = 'pc' if os.name == 'nt' else 'mac'
 RUNTIME = ROOT / ('runtime_' + PLATFORM)
@@ -30,22 +30,33 @@ PROBE = "import sys; assert sys.version_info[:2] == (3,12); import numpy,pandas,
 def run(args, timeout=600, **kwargs):
     return subprocess.run([str(a) for a in args], timeout=timeout, check=True, **kwargs)
 
-def fetch(url, target=None):
-    req = urllib.request.Request(url, headers={'User-Agent':'Sevens-Tarjetas', 'Accept':'application/vnd.github+json'})
-    with urllib.request.urlopen(req, timeout=8) as response:
-        if target is None:
-            return json.load(response)
-        deadline = time.monotonic() + 90
-        with open(target, 'wb') as out:
-            total = 0
-            while True:
-                block = response.read(65536)
-                if not block:
-                    break
-                total += len(block)
-                if time.monotonic() > deadline or total > 50_000_000:
-                    raise TimeoutError('Descarga excedió el límite')
-                out.write(block)
+
+def secure_bytes(url):
+    """HTTPS verificado: urllib o confianza nativa del sistema como alternativa."""
+    import urllib.error,ssl,tempfile,os,subprocess
+    from pathlib import Path
+    from urllib.parse import urlparse
+    if urlparse(url).scheme!='https':raise ValueError('La descarga requiere HTTPS')
+    request=urllib.request.Request(url,headers={'User-Agent':'Sevens-Updates','Accept':'application/vnd.github+json'})
+    try:
+        with urllib.request.urlopen(request,timeout=30) as response:data=response.read(50_000_001)
+    except (urllib.error.URLError,ssl.SSLError):
+        with tempfile.TemporaryDirectory() as temporary:
+            target=Path(temporary)/'download.bin'
+            if os.name=='nt':
+                env=dict(os.environ,SEVENS_DOWNLOAD_URL=url,SEVENS_DOWNLOAD_TARGET=str(target))
+                code="$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -UseBasicParsing -Uri $env:SEVENS_DOWNLOAD_URL -OutFile $env:SEVENS_DOWNLOAD_TARGET -TimeoutSec 90"
+                subprocess.run(['powershell','-NoProfile','-NonInteractive','-Command',code],env=env,check=True,timeout=100,capture_output=True)
+            else:
+                subprocess.run(['curl','--fail','--location','--silent','--show-error','--proto','=https','--proto-redir','=https','--connect-timeout','8','--max-time','90',url,'--output',str(target)],check=True,timeout=100,capture_output=True)
+            data=target.read_bytes()
+    if len(data)>50_000_000:raise ValueError('La descarga excede el tamaño permitido')
+    return data
+
+def fetch(url,target=None):
+    data=secure_bytes(url)
+    if target is None:return json.loads(data)
+    Path(target).write_bytes(data)
 
 def version(value):
     return tuple(int(p) for p in value.strip().lstrip('v').split('.'))
