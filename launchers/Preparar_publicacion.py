@@ -3,6 +3,8 @@ import json,sys,shutil,zipfile
 from arranque import ROOT,MANAGED,SETTINGS,validate_zip
 
 def build(destination):
+    from actualizar_guardado import adapt
+    adapt(ROOT/"APP/app.py")
     destination=Path(destination).resolve();destination.mkdir(parents=True,exist_ok=True)
     version=(ROOT/'version.txt').read_text().strip()
     if version!=SETTINGS['version']:raise ValueError('Versión incompatible con settings.json')

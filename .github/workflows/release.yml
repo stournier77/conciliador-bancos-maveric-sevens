@@ -42,7 +42,8 @@ jobs:
           body: |
             Diseño Sevens unificado, con el motor y las reglas de conciliación conservados.
             Mismos accesos de escritorio en Mac y Windows, actualización automática, reapertura de la ventana y resultados en Documentos.
-            Incluye migración automática desde los actualizadores anteriores. Se conservan los históricos y la configuración local.
+            Selector desde la carpeta de la aplicación; resultados dentro de archivos conciliados, organizados por banco.
+            Conserva históricos, configuración y motor de conciliación.
           files: |
             build/latest_mac.zip
             build/latest_pc.zip

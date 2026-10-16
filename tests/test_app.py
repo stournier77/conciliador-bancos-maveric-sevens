@@ -35,7 +35,10 @@ class AppTests(unittest.TestCase):
 
     def test_interface_and_output_paths(self):
         from streamlit.testing.v1 import AppTest
-        with tempfile.TemporaryDirectory() as temporary, patch('sevens_paths.documents_folder',return_value=Path(temporary)), patch('sevens_migrate.migrate'), patch('subprocess.check_output',return_value='"IOPlatformUUID" = "86FE5326-6706-53D3-97C4-442452FDC186"'), patch('platform.system',return_value='Darwin'):
+        import re
+        source=(APP/'app.py').read_text(encoding='utf-8')
+        device=next(iter(re.findall(r'[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}',source)))
+        with tempfile.TemporaryDirectory() as temporary, patch('sevens_paths.documents_folder',return_value=Path(temporary)), patch('sevens_migrate.migrate'), patch('subprocess.check_output',return_value='"IOPlatformUUID" = "'+device+'"' ), patch('platform.system',return_value='Darwin'):
             # Bancos conserva su archivo local de equipos, aislado en la prueba.
             if KIND=='Bancos':
                 original=Path.exists
@@ -48,7 +51,7 @@ class AppTests(unittest.TestCase):
             self.assertTrue(next(b for b in app.button if b.label=='GENERAR CONCILIACIÓN').disabled)
             expected=2 if KIND=='Bancos' else 3
             self.assertEqual(len(app.get('file_uploader')),expected)
-            self.assertEqual(sevens_paths.output_root(),Path(temporary)/('Conciliador '+KIND)/'Archivos conciliados')
+            self.assertEqual(sevens_paths.output_root(),Path(temporary)/('App Conciliador '+KIND+' Maveric')/'archivos conciliados')
             if KIND=='Bancos' and not existed and auth.exists():auth.unlink()
 
     def test_reopen_running(self):
