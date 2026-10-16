@@ -12,13 +12,15 @@ class SelectedFile(io.BytesIO):
         self.size=len(data)
         self.type=mimetypes.guess_type(name)[0] or 'application/octet-stream'
 
-def choose_file(folder,extensions):
+def choose_file(folder,extensions,on_selected=None):
     folder=Path(folder).resolve();folder.mkdir(parents=True,exist_ok=True)
     extensions=[str(x).lstrip('.').lower() for x in extensions or []]
     if any(not re.fullmatch(r'[a-z0-9]+',x) for x in extensions):raise ValueError('Tipo de archivo inválido')
     if platform.system()=='Darwin':
-        types=', '.join('"'+x+'"' for x in extensions)
-        filter_part=' of type {'+types+'}' if types else ''
+        # Usar tipos de macOS; una extensión de cuatro letras puede interpretarse como un código de archivo antiguo.
+        type_ids={'xlsx':'org.openxmlformats.spreadsheetml.sheet','xls':'com.microsoft.excel.xls','txt':'public.plain-text','pdf':'com.adobe.pdf'}
+        allowed=list(dict.fromkeys(type_ids.get(x,x) for x in extensions))
+        filter_part=' of type {'+', '.join('"'+x+'"' for x in allowed)+'}' if allowed else ''
         script='on run argv\nset selectedFile to choose file with prompt "Seleccionar archivo para conciliar" default location (POSIX file (item 1 of argv))'+filter_part+'\nreturn POSIX path of selectedFile\nend run'
         result=subprocess.run(['osascript','-e',script,'--',str(folder)],capture_output=True,text=True,timeout=600)
         if result.returncode and '-128' in result.stderr:return None
@@ -46,21 +48,54 @@ try { if ($dialog.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK
     if file.stat().st_size>MAX_BYTES:raise ValueError('El archivo supera los 200 MB.')
     with file.open('rb') as source:data=source.read(MAX_BYTES+1)
     if len(data)>MAX_BYTES:raise ValueError('El archivo supera los 200 MB.')
+    if on_selected:on_selected(file.parent)
     return file.name,data
 
-def install_native_uploaders(folder_factory):
+def remembered_folder(app_folder):
+    app_folder=Path(app_folder)
+    record=app_folder/'Archivos APP'/'logs'/'ultima_carpeta_archivos.json'
+    try:
+        folder=Path(json.loads(record.read_text(encoding='utf-8'))['folder'])
+        return folder if folder.is_dir() else app_folder
+    except (OSError,ValueError,KeyError,TypeError):return app_folder
+
+def remember_folder(app_folder,folder):
+    import tempfile
+    record=Path(app_folder)/'Archivos APP'/'logs'/'ultima_carpeta_archivos.json'
+    record.parent.mkdir(parents=True,exist_ok=True)
+    temporary=None
+    try:
+        with tempfile.NamedTemporaryFile(mode='w',encoding='utf-8',dir=record.parent,prefix='carpeta_',suffix='.tmp',delete=False) as target:
+            temporary=Path(target.name)
+            json.dump({'folder':str(Path(folder).resolve())},target,ensure_ascii=False)
+        temporary.replace(record)
+    finally:
+        if temporary and temporary.exists():temporary.unlink()
+
+def install_native_uploaders(folder_factory,first_key=None):
     """Adaptador de presentación: los motores reciben el mismo archivo en memoria."""
     if platform.system()!='Darwin' and os.name!='nt':return
     original=getattr(st.file_uploader,'__dict__',{}).get('_sevens_original',st.file_uploader)
+    first_upload=[first_key]
     def upload(label,type=None,accept_multiple_files=False,key=None,**kwargs):
         if accept_multiple_files or key is None:
             return original(label,type=type,accept_multiple_files=accept_multiple_files,key=key,**kwargs)
+        if first_upload[0] is None:first_upload[0]=key
+        is_first=key==first_upload[0]
         state='_sevens_selected_'+key;generation=state+'_generation';error=state+'_error'
         def changed():
             st.session_state.pop(state,None)
         def select():
             try:
-                selected=choose_file(folder_factory(),type)
+                root=Path(folder_factory())
+                last_key='_sevens_last_folder_'+str(root)
+                initial=root if is_first else Path(st.session_state.get(last_key,remembered_folder(root)))
+                if not initial.is_dir():initial=root
+                def remember(selected_folder):
+                    st.session_state[last_key]=str(selected_folder)
+                    try:remember_folder(root,selected_folder)
+                    except OSError:pass
+                selected=choose_file(initial,type,on_selected=remember)
                 if selected is not None:
                     st.session_state[state]=selected
                     st.session_state[generation]=st.session_state.get(generation,0)+1

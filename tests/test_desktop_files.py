@@ -16,7 +16,7 @@ class DesktopFilesTests(unittest.TestCase):
             initial=Path(temporary)/paths.INSTALL_FOLDER
             def native(command,**kwargs):
                 self.assertEqual(command[-1],str(initial.resolve()))
-                self.assertIn('default location',command[2]);self.assertIn('of type {"xlsx", "xls"}',command[2])
+                self.assertIn('default location',command[2]);self.assertIn('org.openxmlformats.spreadsheetml.sheet',command[2]);self.assertIn('com.microsoft.excel.xls',command[2])
                 return CompletedProcess(command,0,str(source)+'\n','')
             with patch.object(sevens_files.platform,'system',return_value='Darwin'),patch.object(sevens_files.subprocess,'run',side_effect=native):
                 name,data=sevens_files.choose_file(initial,['xlsx','xls'])
@@ -87,5 +87,42 @@ class DesktopFilesTests(unittest.TestCase):
             namespace={'prettify_bank_folder_name':lambda x:'Banco Santander'};exec(compile(ast.Module(body=[node],type_ignores=[]),'storage','exec'),namespace)
             result=namespace['save_copy'](io.BytesIO(b'excel'),'resultado.xlsx','20261001_a_20261007','SANTANDER')
             self.assertEqual(result,paths.output_root()/'Banco Santander/resultado.xlsx');self.assertEqual(result.read_bytes(),b'excel')
+
+    def test_mac_selection_still_rejects_unsupported_extensions(self):
+        with tempfile.TemporaryDirectory() as t:
+            source=Path(t)/'archivo.pdf';source.write_bytes(b'pdf')
+            with patch.object(sevens_files.platform,'system',return_value='Darwin'),patch.object(sevens_files.subprocess,'run',return_value=CompletedProcess([],0,str(source),' ')):
+                with self.assertRaisesRegex(ValueError,'no es compatible'):sevens_files.choose_file(t,['xlsx'])
+
+    def test_first_picker_resets_to_app_and_next_uses_last_selected_folder(self):
+        from streamlit.testing.v1 import AppTest
+        with tempfile.TemporaryDirectory() as t:
+            root=Path(t)/'app';root.mkdir();selected_folder=Path(t)/'Excel juntos';selected_folder.mkdir()
+            script=Path(t)/'two_uploads.py'
+            script.write_text('import sys\nsys.path.insert(0,'+repr(str(APP))+')\nimport streamlit as st\nfrom sevens_files import install_native_uploaders\nfrom pathlib import Path\ninstall_native_uploaders(lambda:Path('+repr(str(root))+'),first_key="first")\nst.file_uploader("Primero",type=["xlsx"],key="first")\nst.file_uploader("Segundo",type=["xlsx"],key="second")\n',encoding='utf-8')
+            locations=[]
+            def select(folder,extensions,on_selected=None):
+                locations.append(Path(folder));on_selected(selected_folder)
+                return 'ejemplo.xlsx',b'bytes'
+            with patch.object(sevens_files.platform,'system',return_value='Darwin'),patch.object(sevens_files,'choose_file',side_effect=select):
+                app=AppTest.from_file(str(script)).run()
+                next(b for b in app.button if b.key=='desktop_pick_first').click().run()
+                next(b for b in app.button if b.key=='desktop_pick_second').click().run()
+                next(b for b in app.button if b.key=='desktop_pick_first').click().run()
+                self.assertFalse(app.exception)
+                self.assertEqual(locations,[root,selected_folder,root])
+            self.assertEqual(sevens_files.remembered_folder(root).resolve(),selected_folder.resolve())
+            self.assertEqual(sevens_files.remembered_folder(Path(t)/'otra-app'),Path(t)/'otra-app')
+            record=root/'Archivos APP/logs/ultima_carpeta_archivos.json';record.write_text('invalid',encoding='utf-8')
+            self.assertEqual(sevens_files.remembered_folder(root),root)
+
+    def test_mac_filters_remain_specific_for_txt_excel_and_pdf(self):
+        with tempfile.TemporaryDirectory() as t:
+            for extensions,expected,excluded in [(['txt'],['public.plain-text'],['com.adobe.pdf','org.openxmlformats']),(['xlsx','xls'],['org.openxmlformats.spreadsheetml.sheet','com.microsoft.excel.xls'],['public.plain-text','com.adobe.pdf']),(['pdf'],['com.adobe.pdf'],['public.plain-text','org.openxmlformats'])]:
+                def native(command,**kwargs):
+                    for value in expected:self.assertIn(value,command[2])
+                    for value in excluded:self.assertNotIn(value,command[2])
+                    return CompletedProcess(command,1,'','User canceled. (-128)')
+                with patch.object(sevens_files.platform,'system',return_value='Darwin'),patch.object(sevens_files.subprocess,'run',side_effect=native):self.assertIsNone(sevens_files.choose_file(t,extensions))
 
 if __name__=='__main__':unittest.main()
