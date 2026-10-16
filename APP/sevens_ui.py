@@ -2,6 +2,7 @@
 from pathlib import Path
 import base64
 import html
+import json
 import streamlit as st
 
 ASSETS = Path(__file__).resolve().parents[1] / "assets"
@@ -36,4 +37,7 @@ def sidebar_brand(name):
 
 
 def sidebar_info(name, version, date):
+    settings=json.loads((ASSETS.parent / "settings.json").read_text(encoding="utf-8"))
+    version=settings.get("version",version)
+    date=settings.get("release_date",date)
     st.markdown(f'''<div class="sevens-device-card"><div class="sevens-device-row"><span>Equipo</span><strong>{html.escape(name)}</strong></div><div class="sevens-device-row"><span>Versión</span><strong>{html.escape(version)}</strong></div><div class="sevens-device-date">Creada el {html.escape(date)}</div></div>''', unsafe_allow_html=True)

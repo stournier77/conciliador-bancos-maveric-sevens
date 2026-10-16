@@ -36,7 +36,7 @@ jobs:
         with:
           tag_name: v${{ steps.version.outputs.value }}
           target_commitish: ${{ github.sha }}
-          name: Conciliador Bancos ${{ steps.version.outputs.value }} · 15/10/2026
+          name: Conciliador Bancos ${{ steps.version.outputs.value }} · 16/10/2026
           make_latest: true
           fail_on_unmatched_files: true
           body: |
