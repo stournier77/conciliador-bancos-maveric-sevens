@@ -9,3 +9,5 @@ Los paquetes mantienen compatibilidad con los actualizadores anteriores. La prim
 Pruebas: python -m unittest discover -s tests; en Windows se prueban además la recuperación de Python ausente y la reutilización del entorno con PowerShell. Generar paquetes: python launchers/Preparar_publicacion.py build.
 
 Corrección HTTPS: si el Python del equipo carece de certificados raíz, la descarga usa curl en Mac o la confianza del sistema en Windows. Se mantiene la validación TLS y SHA256 del paquete. No se modifica la configuración de certificados del equipo.
+
+Resultados en Documentos/App Conciliador Bancos Maveric/archivos conciliados. El selector de escritorio abre la carpeta de esta aplicación en Mac y Windows; se mantiene arrastrar archivos. Los históricos de la carpeta anterior se copian sin borrar originales ni sobrescribir.

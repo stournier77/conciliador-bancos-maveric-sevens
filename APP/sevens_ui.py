@@ -10,6 +10,11 @@ ASSETS = Path(__file__).resolve().parents[1] / "assets"
 
 def apply_design():
     st.markdown((ASSETS / "sevens.css").read_text(encoding="utf-8"), unsafe_allow_html=True)
+    from sevens_paths import app_folder,migrate_previous_results
+    from sevens_files import install_native_uploaders
+    try:migrate_previous_results()
+    except OSError:st.warning("No se pudieron copiar algunos históricos; se conservan en su carpeta anterior.")
+    install_native_uploaders(app_folder)
 
 
 def header(name, subtitle):
