@@ -61,4 +61,11 @@ html,body,.stApp,button,input,select{font-family:"Avenir Next","Segoe UI",system
 /* Panel fijo: evita ocultarlo accidentalmente durante la conciliación. */
 [data-testid="stSidebarCollapseButton"]{display:none!important}
 [data-testid="stExpandSidebarButton"],[data-testid="stSidebarCollapsedControl"]{visibility:visible!important;opacity:1!important;z-index:9999}
+/* Cargas de archivos: contenido centrado también en columnas angostas. */
+[data-testid="stFileUploaderDropzone"]{flex-direction:column!important;align-items:center!important;justify-content:center!important}
+[data-testid="stFileUploaderDropzoneInstructions"]{width:100%;max-width:100%;flex-shrink:1}
+[data-testid="stFileUploaderDropzoneInstructions"]>span{display:none}
+[data-testid="stFileUploaderDropzoneInstructions"]>div{min-width:0;max-width:100%;text-align:center}
+[data-testid="stFileUploaderDropzone"]>span{align-self:center;max-width:100%;min-width:0}
+[data-testid="stFileUploaderDropzone"] button{min-width:0;width:154px;max-width:100%;margin-inline:auto}
 </style>

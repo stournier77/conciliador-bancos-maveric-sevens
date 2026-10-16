@@ -1,7 +1,8 @@
 {
   "kind": "Bancos",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "repo": "stournier77/conciliador-bancos-maveric-sevens",
   "port": 8772,
-  "install_folder": "App Conciliador Bancos Maveric"
+  "install_folder": "App Conciliador Bancos Maveric",
+  "release_date": "16/10/2026"
 }
