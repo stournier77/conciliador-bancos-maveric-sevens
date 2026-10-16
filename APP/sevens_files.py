@@ -17,9 +17,9 @@ def choose_file(folder,extensions):
     extensions=[str(x).lstrip('.').lower() for x in extensions or []]
     if any(not re.fullmatch(r'[a-z0-9]+',x) for x in extensions):raise ValueError('Tipo de archivo inválido')
     if platform.system()=='Darwin':
-        types=', '.join('"'+x+'"' for x in extensions)
-        filter_part=' of type {'+types+'}' if types else ''
-        script='on run argv\nset selectedFile to choose file with prompt "Seleccionar archivo para conciliar" default location (POSIX file (item 1 of argv))'+filter_part+'\nreturn POSIX path of selectedFile\nend run'
+        # Finder no siempre reconoce extensiones como tipos de AppleScript.
+        # Mostrar archivos y validar su extensión después de seleccionarlos.
+        script='on run argv\nset selectedFile to choose file with prompt "Seleccionar archivo para conciliar" default location (POSIX file (item 1 of argv))\nreturn POSIX path of selectedFile\nend run'
         result=subprocess.run(['osascript','-e',script,'--',str(folder)],capture_output=True,text=True,timeout=600)
         if result.returncode and '-128' in result.stderr:return None
         if result.returncode:raise RuntimeError('No se pudo abrir el selector de archivos de macOS.')

@@ -16,7 +16,7 @@ class DesktopFilesTests(unittest.TestCase):
             initial=Path(temporary)/paths.INSTALL_FOLDER
             def native(command,**kwargs):
                 self.assertEqual(command[-1],str(initial.resolve()))
-                self.assertIn('default location',command[2]);self.assertIn('of type {"xlsx", "xls"}',command[2])
+                self.assertIn('default location',command[2]);self.assertNotIn('of type',command[2])
                 return CompletedProcess(command,0,str(source)+'\n','')
             with patch.object(sevens_files.platform,'system',return_value='Darwin'),patch.object(sevens_files.subprocess,'run',side_effect=native):
                 name,data=sevens_files.choose_file(initial,['xlsx','xls'])
@@ -87,5 +87,11 @@ class DesktopFilesTests(unittest.TestCase):
             namespace={'prettify_bank_folder_name':lambda x:'Banco Santander'};exec(compile(ast.Module(body=[node],type_ignores=[]),'storage','exec'),namespace)
             result=namespace['save_copy'](io.BytesIO(b'excel'),'resultado.xlsx','20261001_a_20261007','SANTANDER')
             self.assertEqual(result,paths.output_root()/'Banco Santander/resultado.xlsx');self.assertEqual(result.read_bytes(),b'excel')
+
+    def test_mac_selection_still_rejects_unsupported_extensions(self):
+        with tempfile.TemporaryDirectory() as t:
+            source=Path(t)/'archivo.pdf';source.write_bytes(b'pdf')
+            with patch.object(sevens_files.platform,'system',return_value='Darwin'),patch.object(sevens_files.subprocess,'run',return_value=CompletedProcess([],0,str(source),' ')):
+                with self.assertRaisesRegex(ValueError,'no es compatible'):sevens_files.choose_file(t,['xlsx'])
 
 if __name__=='__main__':unittest.main()
